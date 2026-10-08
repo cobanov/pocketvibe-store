@@ -1,0 +1,50 @@
+# Every pull request: build the games it adds or changes from their source,
+# check them, and attach the zips, so anyone can try them on a handheld
+# (npx pocketvibe review <pull request number>). No secrets here: this builds
+# code from anyone.
+name: Check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and check the games this pull request changes
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch -q origin "$BASE_REF"
+          # Anything outside games/ (the scripts, these workflows) is for maintainers.
+          others=$(git diff --name-only "origin/$BASE_REF...HEAD" | grep -v '^games/' || true)
+          if [ -n "$others" ] && [ "$PR_AUTHOR" != "cobanov" ]; then
+            echo "Only files in games/ can change in a game's pull request: $others"
+            exit 1
+          fi
+          removed=$(git diff --name-only --diff-filter=D "origin/$BASE_REF...HEAD" -- 'games/*.json')
+          if [ -n "$removed" ] && [ "$PR_AUTHOR" != "cobanov" ]; then
+            echo "Removing a game is for maintainers: $removed"
+            exit 1
+          fi
+          status=0
+          for f in $(git diff --name-only --diff-filter=AM "origin/$BASE_REF...HEAD" -- 'games/*.json'); do
+            node scripts/build-game.mjs "$f" dist || status=1
+          done
+          exit $status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: games
+          path: dist/*.zip
+          if-no-files-found: ignore

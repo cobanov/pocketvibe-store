@@ -1,0 +1,9 @@
+{
+  "id": "snake",
+  "owner": "cobanov",
+  "source": {
+    "repo": "https://github.com/cobanov/pocketvibe",
+    "commit": "6fb498f2d0779e301c281448b7b00f190aa2fa5d",
+    "path": "games/snake"
+  }
+}

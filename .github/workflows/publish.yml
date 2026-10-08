@@ -1,0 +1,72 @@
+# On main: build the games a merge changed and publish them to the store.
+# The build job runs games' code and has no secrets; the publish job has the
+# store's token and only sends the zips the build job made.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['games/**']
+  workflow_dispatch:
+    inputs:
+      games:
+        description: Game ids to publish again, separated by spaces
+        required: true
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the changed games
+        env:
+          BEFORE: ${{ github.event.before }}
+          INPUT: ${{ github.event.inputs.games }}
+        run: |
+          if [ -n "$INPUT" ]; then
+            files=$(for g in $INPUT; do echo "games/$g.json"; done)
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            files=$(ls games/*.json)
+          else
+            files=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD -- 'games/*.json')
+          fi
+          status=0
+          for f in $files; do
+            node scripts/build-game.mjs "$f" dist || status=1
+          done
+          exit $status
+      - uses: actions/upload-artifact@v4
+        with:
+          name: games
+          path: dist/*.zip
+          if-no-files-found: ignore
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: games
+          path: dist
+      - name: Publish to the store
+        env:
+          POCKETVIBE_STORE_TOKEN: ${{ secrets.POCKETVIBE_STORE_TOKEN }}
+        run: node scripts/publish-games.mjs dist
