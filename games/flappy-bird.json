@@ -1,0 +1,9 @@
+{
+  "id": "flappy-bird",
+  "owner": "thecsa",
+  "source": {
+    "repo": "https://github.com/thecsa/flappy-bird",
+    "commit": "c17757ddab48496ae4de0cb979fbfb20d0b37c99",
+    "path": "."
+  }
+}
