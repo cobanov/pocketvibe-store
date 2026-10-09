@@ -1,6 +1,7 @@
 {
   "id": "maze-chase",
   "owner": "cobanov",
+  "age": 4,
   "source": {
     "repo": "https://github.com/cobanov/pocketvibe",
     "commit": "e499c09844b9d8c641d0178bba6e0b53ca583a88",

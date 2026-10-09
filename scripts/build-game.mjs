@@ -71,7 +71,12 @@ if (entry) {
   if (!/^[0-9a-f]{40}$/.test(source.commit ?? '')) fail('"source.commit" must be a full commit hash (40 characters).');
   const path = source.path ?? '.';
   if (typeof path !== 'string' || path.startsWith('/') || path.split('/').includes('..')) fail('"source.path" must be a folder inside the repository.');
-  const extra = Object.keys(entry).filter((k) => !['id', 'owner', 'source'].includes(k));
+  // The youngest age the game suits, as the App Store rates apps. The iPhone
+  // app lists only games rated for its own rating, so an unrated game is
+  // missing there; the maintainer sets or checks it in review.
+  if (entry.age === undefined) warnings.push('No "age" (4, 9, 13, 16 or 18): the iPhone app will not list the game until it has one.');
+  else if (![4, 9, 13, 16, 18].includes(entry.age)) fail('"age" must be 4, 9, 13, 16 or 18.');
+  const extra = Object.keys(entry).filter((k) => !['id', 'owner', 'age', 'source'].includes(k));
   if (extra.length) fail(`Unknown fields: ${extra.join(', ')}.`);
 }
 

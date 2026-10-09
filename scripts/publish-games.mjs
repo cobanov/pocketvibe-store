@@ -29,7 +29,13 @@ for (const name of zips) {
     const data = readFileSync(join(dir, name));
     const res = await fetch(`${STORE}/api/ci/publish`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-PocketVibe-Owner': entry.owner, 'Content-Type': 'application/zip' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-PocketVibe-Owner': entry.owner,
+        // The age rating also comes from this repository; the store keeps it even when the version is unchanged.
+        ...(entry.age !== undefined && { 'X-PocketVibe-Age': String(entry.age) }),
+        'Content-Type': 'application/zip',
+      },
       body: data,
     });
     const result = await res.json().catch(() => ({}));
