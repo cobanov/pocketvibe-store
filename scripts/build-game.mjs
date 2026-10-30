@@ -69,7 +69,7 @@ if (entry) {
   if (entry.id !== id) fail(`"id" must be "${id}", the file's name.`);
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) fail('The id must be lowercase letters, digits and dashes.');
   if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(entry.owner ?? '')) fail('"owner" must be a GitHub username.');
-  if (!Number.isInteger(entry.owner_id) || entry.owner_id <= 0) fail('"owner_id" must be the owner\'s GitHub user id (the "id" at https://api.github.com/users/<username>).');
+  if (!Number.isInteger(entry.owner_id) || entry.owner_id <= 0) fail('"owner_id" must be the owner\'s GitHub user id (the "id" at https://api.github.com/users/<username>); `npx pocketvibe@latest publish` writes it.');
   const source = entry.source ?? {};
   if (!/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(source.repo ?? '')) fail('"source.repo" must be a GitHub repository address, like https://github.com/you/your-game.');
   if (!/^[0-9a-f]{40}$/.test(source.commit ?? '')) fail('"source.commit" must be a full commit hash (40 characters).');
