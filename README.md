@@ -40,6 +40,7 @@ By hand, add `games/<id>.json`:
 {
   "id": "snow-race",
   "owner": "your-github-username",
+  "owner_id": 12345678,
   "age": 4,
   "source": {
     "repo": "https://github.com/your-github-username/snow-race",
@@ -50,7 +51,9 @@ By hand, add `games/<id>.json`:
 ```
 
 - `id` is the game's id from its `pocketvibe.json`, and the file's name.
-- `owner` is you: only the owner can update the game later.
+- `owner` is you, and `owner_id` your GitHub user id (the `id` at
+  `https://api.github.com/users/<your-username>`): only that account can update the game later,
+  even if its username changes or someone else takes the old one.
 - `age` is the youngest age the game suits, as the App Store rates apps: `4`, `9` (mild cartoon
   or fantasy violence), `13`, `16` (for example suggestive themes) or `18` (for example realistic
   violence). The iPhone app lists only games rated for its own rating, so a game without one is

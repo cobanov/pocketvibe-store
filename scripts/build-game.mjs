@@ -9,7 +9,8 @@
 // builds code from anyone, so it must only run where no secret is available.
 //
 // On a pull request, PR_AUTHOR (the pull request's author) and BASE_REF (the
-// branch it targets) let it check that only a game's owner changes it.
+// branch it targets) let it check that only a game's owner changes it; the
+// author's GitHub user id comes from the event (or PR_AUTHOR_ID).
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -17,7 +18,9 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve, sep } from 'node:path';
 
 const STORE = 'https://pocketvibe-store.mertcobanov.workers.dev';
-const MAINTAINERS = ['cobanov'];
+// GitHub user ids, which never change: a login can be renamed and later taken
+// by someone else, who must not inherit its games.
+const MAINTAINER_IDS = [29142615]; // cobanov
 const GENRES = ['Arcade', 'Shooter', 'Racing', 'Puzzle', 'Platformer', 'Sports'];
 const MAX_ZIP = 50 * 1024 * 1024;
 const MAX_UNPACKED = 200 * 1024 * 1024;
@@ -66,6 +69,7 @@ if (entry) {
   if (entry.id !== id) fail(`"id" must be "${id}", the file's name.`);
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) fail('The id must be lowercase letters, digits and dashes.');
   if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(entry.owner ?? '')) fail('"owner" must be a GitHub username.');
+  if (!Number.isInteger(entry.owner_id) || entry.owner_id <= 0) fail('"owner_id" must be the owner\'s GitHub user id (the "id" at https://api.github.com/users/<username>); `npx pocketvibe@latest publish` writes it.');
   const source = entry.source ?? {};
   if (!/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(source.repo ?? '')) fail('"source.repo" must be a GitHub repository address, like https://github.com/you/your-game.');
   if (!/^[0-9a-f]{40}$/.test(source.commit ?? '')) fail('"source.commit" must be a full commit hash (40 characters).');
@@ -76,24 +80,37 @@ if (entry) {
   // missing there; the maintainer sets or checks it in review.
   if (entry.age === undefined) warnings.push('No "age" (4, 9, 13, 16 or 18): the iPhone app will not list the game until it has one.');
   else if (![4, 9, 13, 16, 18].includes(entry.age)) fail('"age" must be 4, 9, 13, 16 or 18.');
-  const extra = Object.keys(entry).filter((k) => !['id', 'owner', 'age', 'source'].includes(k));
+  const extra = Object.keys(entry).filter((k) => !['id', 'owner', 'owner_id', 'age', 'source'].includes(k));
   if (extra.length) fail(`Unknown fields: ${extra.join(', ')}.`);
 }
 
 // Only a game's owner (or a maintainer) changes it, and a new game belongs to
 // whoever opens its pull request.
 const author = process.env.PR_AUTHOR;
+const authorId = pullRequestAuthorId();
 let before = null; // the game's file before this pull request, if it had one
-if (entry && author) {
+if (entry && author && !authorId) fail('Cannot tell who opened this pull request: no GitHub user id in the event or PR_AUTHOR_ID.');
+if (entry && author && authorId) {
   try {
     before = JSON.parse(run('git', ['show', `origin/${process.env.BASE_REF ?? 'main'}:${file}`], { stdio: ['ignore', 'pipe', 'ignore'] }));
   } catch {
     // A new game.
   }
-  const maintainer = MAINTAINERS.includes(author);
-  if (before && before.owner !== author && !maintainer) fail(`${id} belongs to ${before.owner}; only they can update it.`);
-  if (before && entry.owner !== before.owner && !maintainer) fail('A game\'s owner can only be changed by a maintainer.');
-  if (!before && entry.owner !== author && !maintainer) fail(`"owner" must be ${author}, who opened this pull request.`);
+  const maintainer = MAINTAINER_IDS.includes(authorId);
+  if (before && before.owner_id !== authorId && !maintainer) fail(`${id} belongs to ${before.owner}; only they can update it.`);
+  if (before && entry.owner_id !== before.owner_id && !maintainer) fail('A game\'s owner can only be changed by a maintainer.');
+  if (!before && (entry.owner !== author || entry.owner_id !== authorId) && !maintainer) {
+    fail(`"owner" must be ${author} and "owner_id" ${authorId}: whoever opened this pull request.`);
+  }
+}
+
+function pullRequestAuthorId() {
+  if (process.env.PR_AUTHOR_ID) return Number(process.env.PR_AUTHOR_ID);
+  try {
+    return JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).pull_request?.user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 if (failures.length) {
